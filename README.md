@@ -1,4 +1,5 @@
 # meeting-pulse
+```
 meeting-pulse/
 ├── extension/                  # 🌐 Браузерное расширение (Frontend - React + Vite)
 │   ├── src/
@@ -20,3 +21,4 @@ meeting-pulse/
 │   └── main.py                 # API-мост между бэкендом и нейросетками
 │
 └── README.md                   # Документация проекта
+```
