@@ -2,93 +2,111 @@
 ```
 meeting-pulse/
 │
-├── extension/                         # 🌐 Frontend (React + Vite + TypeScript)
+├── extension/                                   # 🌐 FRONTEND (Chrome Extension: React + Vite + TS)
+│   ├── public/                                  # Статические ресурсы
+│   │   ├── icon-16.png                          # Иконка расширения (тулбар)
+│   │   ├── icon-48.png                          # Иконка расширения (управление расширениями)
+│   │   └── icon-128.png                         # Иконка расширения (Chrome Web Store)
+│   │
 │   ├── src/
-│   │   ├── popup/                     # Всплывающее UI-окно расширения
-│   │   │   ├── Popup.tsx              # Главный React-компонент (статус встречи, управление)
-│   │   │   ├── Popup.css              # Glassmorphism стили
-│   │   │   ├── main.tsx               # Точка монтирования React
-│   │   │   └── index.html
+│   │   ├── api/                                 # 🌐 Слой HTTP-запросов к REST API
+│   │   │   ├── apiClient.ts                     # Базовый fetch-клиент с подстановкой Bearer JWT из chrome.storage
+│   │   │   ├── authApi.ts                       # Запросы: POST /api/auth/login, POST /api/auth/refresh
+│   │   │   ├── meetingsApi.ts                   # Запросы: GET/POST /api/meetings, GET /api/meetings/{id}/pdf
+│   │   │   └── analyticsApi.ts                  # Запросы: GET /api/analytics/summary
 │   │   │
-│   │   ├── background/                # Service Worker (работает в фоне)
-│   │   │   ├── index.ts               # Точка входа
-│   │   │   ├── signalrClient.ts       # SignalR соединение с бэкендом
-│   │   │   └── authService.ts         # JWT авторизация (chrome.storage)
+│   │   ├── popup/                               # 🖼️ Всплывающий UI-интерфейс
+│   │   │   ├── Popup.tsx                        # Главный компонент (кнопка Старт/Стоп, статус SignalR, список встреч)
+│   │   │   ├── Popup.css                        # Glassmorphism-стили, анимация пульсации записи
+│   │   │   ├── main.tsx                         # Точка монтирования React (ReactDOM.createRoot)
+│   │   │   └── index.html                       # HTML-каркас для окно попапа
 │   │   │
-│   │   ├── content/                   # Content Scripts (инжектируются в Meet/Телемост)
-│   │   │   ├── index.ts               # Точка входа DOM-наблюдателей
-│   │   │   ├── audioCapture.ts        # Захват звука с вкладки/микрофона (Web Audio API)
-│   │   │   └── domInteractions.ts     # Извлечение списка участников и текущего спикера
+│   │   ├── background/                          # ⚙️ Service Worker (Фоновые процессы)
+│   │   │   ├── index.ts                         # Точка входа фонового скрипта, маршрутизация сообщений
+│   │   │   ├── signalrClient.ts                 # Real-time клиент SignalR (стриминг аудио, прием транскрипта)
+│   │   │   └── authService.ts                   # Сохранение и чтение JWT-токенов из chrome.storage.local
 │   │   │
-│   │   └── shared/                    # Общие типы и константы
-│   │       ├── types/                 # DTO, события, интерфейсы
-│   │       └── constants/             # Эндпоинты, ключи
+│   │   ├── content/                             # 👁️ Content Scripts (Инжектируются на страницы Meet/Телемост)
+│   │   │   ├── index.ts                         # Диспетчер инжекции (проверка URL и запуск наблюдателей)
+│   │   │   ├── audioCapture.ts                  # Захват аудио-потока вкладки через Web Audio API, нарезка на PCM-чанки
+│   │   │   └── domInteractions.ts               # MutationObserver: считывание активного спикера и списка участников
+│   │   │
+│   │   └── shared/                              # 📦 Общие типы и константы
+│   │       ├── types/
+│   │       │   ├── meeting.ts                   # DTO интерфейсы: Meeting, TranscriptSegment, ActionItem
+│   │       │   └── api.ts                       # Интерфейсы ответов API: AuthResponse, ApiError
+│   │       └── constants/
+│   │           ├── endpoints.ts                 # Константы URL бэкенда и SignalR-хаба
+│   │           └── events.ts                    # Константы Chrome runtime сообщений (START_RECORDING, etc.)
 │   │
-│   ├── manifest.json                  # Chrome Manifest V3
-│   ├── package.json
-│   └── vite.config.ts
+│   ├── manifest.json                            # Конфигурация Chrome Manifest V3
+│   ├── package.json                             # Зависимости фронтенда (React, Vite, @microsoft/signalr)
+│   ├── tsconfig.json                            # Настройки TypeScript
+│   └── vite.config.ts                           # Сборка под расширение (отдельные бандлы popup, background, content)
 │
 │
-├── backend/                           # ⚙️ Core API Server (.NET 9 / .NET 10)
-│   ├── Controllers/                   # REST API эндпоинты
-│   │   ├── AuthController.cs          # Авторизация, токены
-│   │   ├── MeetingsController.cs      # Список встреч, детализация, ручная выгрузка PDF
-│   │   └── AnalyticsController.cs     # Аналитика по созвонам
+├── backend/                                     # ⚙️ CORE API SERVER (.NET 9 / .NET 10)
+│   ├── Controllers/                             # 🛣️ REST эндпоинты
+│   │   ├── AuthController.cs                    # Авторизация: /api/auth/login, /api/auth/refresh
+│   │   ├── MeetingsController.cs                # Встречи: CRUD операций, получение PDF-отчета
+│   │   └── AnalyticsController.cs               # Дашборд: статистика по спикерам и встречам
 │   │
-│   ├── Hubs/                          # Real-Time WebSocket коммуникация
-│   │   ├── MeetingHub.cs              # Прием аудио-потока, стриминг транскрипта
-│   │   └── Clients/IMeetingClient.cs  # Интерфейсы сигналов для фронтенда
+│   ├── Hubs/                                    # 🔌 Real-Time WebSocket (SignalR)
+│   │   ├── MeetingHub.cs                        # Прием бинарного аудио от расширения, отправка распознанного текста
+│   │   └── Clients/
+│   │       └── IMeetingClient.cs                # Строго типизированный интерфейс сигналов для фронтенда
 │   │
-│   ├── Services/                      # Бизнес-логика
-│   │   ├── MeetingService.cs          # Управление состоянием созвона
-│   │   ├── VectorSearchService.cs     # Поиск по эмбеддингам через pgvector
-│   │   ├── PdfReportGenerator.cs      # Генерация красивых PDF-отчетов (QuestPDF / HTML-to-PDF)
-│   │   ├── NotificationService.cs     # Рассылка PDF всем участникам встречи (SMTP / Email / Telegram)
-│   │   └── AudioStreamBuffer.cs       # Буферизация аудио-чанков перед передачей в AI
-│   │
-│   ├── Data/                          # База данных (EF Core + PostgreSQL)
-│   │   ├── ApplicationDbContext.cs
+│   ├── Data/                                    # 🗄️ База данных (EF Core + PostgreSQL + pgvector)
+│   │   ├── ApplicationDbContext.cs              # Контекст БД, настройка векторов и связей
 │   │   ├── Entities/
-│   │   │   ├── User.cs                # Пользователи системы
-│   │   │   ├── Meeting.cs             # Метаданные встречи, ссылка на PDF, вектор
-│   │   │   ├── Participant.cs         # Участники встречи (Email, имя) для рассылки
-│   │   │   ├── TranscriptSegment.cs   # Расшифрованные реплики спикеров
-│   │   │   └── ActionItem.cs          # Сгенерированные задачи и поручения
-│   │   └── Migrations/
+│   │   │   ├── User.cs                          # Пользователи (Email, PasswordHash, RefreshToken)
+│   │   │   ├── Meeting.cs                       # Метаданные встречи (Title, Dates, PdfUrl, Vector)
+│   │   │   ├── Participant.cs                   # Участники встречи (Email, Name)
+│   │   │   ├── TranscriptSegment.cs             # Расшифрованные реплики (Speaker, Text, Timestamp)
+│   │   │   └── ActionItem.cs                    # Сгенерированные поручения (Task, Assignee, Status)
+│   │   └── Migrations/                          # Миграции EF Core
 │   │
-│   ├── Templates/                     # Шаблоны документов
-│   │   └── MeetingReportTemplate.razor# HTML/Razor шаблон для генерации PDF
+│   ├── Infrastructure/                          # 🏗️ Инфраструктурные сервисы
+│   │   ├── RabbitMqProducer.cs                  # Отправка задач и аудио в очередь RabbitMQ
+│   │   └── EmailClient.cs                       # SMTP-клиент MailKit для рассылки отчетов
 │   │
-│   ├── Models/                        # DTOs запросов и ответов
-│   ├── appsettings.json
-│   └── Program.cs
+│   ├── Services/                                # 💼 Бизнес-логика
+│   │   ├── MeetingService.cs                    # Логика управления состоянием созвонов
+│   │   ├── VectorSearchService.cs               # Поиск по прошлым встречам через pgvector
+│   │   ├── PdfReportGenerator.cs                # Рендеринг PDF-отчетов из Razor в файл
+│   │   ├── S3StorageService.cs                  # Загрузка и скачивание PDF/аудио из MinIO / S3
+│   │   ├── NotificationService.cs               # Рассылка итоговых отчетов участникам
+│   │   └── AudioStreamBuffer.cs                 # Накопительный буфер аудио перед отправкой в очередь
+│   │
+│   ├── Templates/                               # 📄 Шаблоны отчетов
+│   │   └── MeetingReportTemplate.razor          # HTML/Razor верстка итогового PDF-документа
+│   │
+│   ├── Models/                                  # DTO запросов и ответов бэкенда
+│   ├── appsettings.json                         # Конфигурация DB, JWT, RabbitMQ, S3
+│   └── Program.cs                               # Точка входа, DI-контейнер, Middleware
 │
 │
-├── ai-service/                        # 🧠 Custom AI Engine (.NET 9/10 + ONNX Runtime)
-│   ├── Inference/                     # C# движки запускa нейросетей
-│   │   ├── WhisperOnnxEngine.cs       # STT: Преобразование аудио в текст
-│   │   ├── SlmNlpEngine.cs            # NLP: Кастомная SLM (выделение тезисов, спикеров, Action Items)
-│   │   ├── TokenizerService.cs        # Токенизатор текста (Microsoft.ML.Tokenizers)
-│   │   └── AudioPreprocessor.cs       # Ресемплинг аудио до 16kHz
+├── ai-service/                                  # 🧠 AI ENGINE WORKER (.NET + ONNX Runtime)
+│   ├── Inference/                               # ⚡ C# движки выполнения нейросетей
+│   │   ├── WhisperOnnxEngine.cs                 # Speech-to-Text: Инференс ONNX модели Whisper
+│   │   ├── SlmNlpEngine.cs                      # NLP: Инференс дообученной SLM (выделение тезисов и задач)
+│   │   ├── TokenizerService.cs                  # Токенизация текста через Microsoft.ML.Tokenizers
+│   │   └── AudioPreprocessor.cs                 # Ресемплинг аудио в 16kHz MONO, шумоподавление
 │   │
-│   ├── Pipelines/                     # Пайплайны обработки
-│   │   ├── SttPipeline.cs             # Потоковая транскрибация
-│   │   └── SummaryPipeline.cs         # Формирование итогового структурированного JSON для бэкенда
+│   ├── Pipelines/                               # 🔄 Конвейеры обработки
+│   │   ├── SttPipeline.cs                       # Пайплайн: Audio Chunk -> Preprocess -> Whisper -> Text
+│   │   └── SummaryPipeline.cs                   # Пайплайн: Full Transcript -> SLM -> Structured JSON
 │   │
-│   ├── Services/                      # Фоновые воркеры
-│   │   ├── AudioQueueConsumer.cs      # Обработчик очереди задач из бэкенда
-│   │   └── EmbeddingGenerator.cs      # Генератор векторных представлений текста
+│   ├── Services/                                # 👂 Фоновые воркеры
+│   │   ├── AudioQueueConsumer.cs                # BackgroundService: чтение аудио из RabbitMQ
+│   │   └── EmbeddingGenerator.cs                # Генератор векторных представлений для pgvector
 │   │
-│   ├── Models/                        # Веса дообученных моделей (ONNX)
-│   │   ├── whisper-small-ru.onnx
-│   │   └── custom-slm-summary.onnx
+│   ├── Models/                                  # 🤖 Веса ONNX (Добавлены в .gitignore)
+│   │   ├── .gitignore                           # Исключает .onnx файлы из Git
+│   │   └── download_models.sh                   # Скрипт автоматического скачивания моделей при билде
 │   │
-│   ├── Training/                      # Локальные Python-скрипты для дообучения моделей
-│   │   ├── fine_tune_slm.py           # LoRA файнтюнинг вашей модели
-│   │   └── export_to_onnx.py          # Экспорт весов в ONNX FP16
-│   │
-│   ├── Program.cs                     # Worker Service (.NET)
-│   └── ai-service.csproj
+│   ├── Program.cs                               # Точка входа Worker Service
+│   └── ai-service.csproj                        # Подключение Microsoft.ML.OnnxRuntime
 │
-└── README.md
+└── README.md                                    # Документация проекта и инструкция по запуску
 ```
