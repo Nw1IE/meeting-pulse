@@ -1,0 +1,6 @@
+@MeetingPulse.Server_HostAddress = http://localhost:5050
+
+GET {{MeetingPulse.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
